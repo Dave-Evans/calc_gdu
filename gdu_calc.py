@@ -21,11 +21,16 @@ def lambda_handler(event, context):
 
     start_date = body["start_date"]
     end_date = body["end_date"]
+
+    # Verify planting date is before photo date
+    if end_date <= start_date:
+        return None
+
     lon = body["lon"]
     lat = body["lat"]
     base_number = 40
     upper_thresh = 86
-    gdu = calc_gdu(
+    result = calc_gdu(
         start_date,
         end_date,
         lon,
@@ -33,12 +38,13 @@ def lambda_handler(event, context):
         base_number=base_number,
         upper_thresh=upper_thresh,
     )
-    print(f"The gdu: {gdu}")
+
+    logger.info(result)
 
     logger.info(f"CloudWatch logs group: {context.log_group_name}")
 
     # return the calculated area as a JSON string
-    data = {"gdu": gdu}
+    data = result
     return json.dumps(data)
 
 
@@ -103,17 +109,20 @@ def get_dist_to_stations(list_stations, lon, lat):
 
 
 # collect data from that station
-def retrieve_station_data(stationid, start_date, end_date):
+def retrieve_station_data(stationid, start_date, end_date, element="AVA"):
     interval = "dly"
+    # Precip
+    # element = "PRE"
+    # Average Air Temp
     element = "AVA"
-    reductions = "&reduction=".join(["max", "min", "avg"])
+    # element = "&elem=".join(["AVA", "PRE"])
+    reductions = "avg"
 
     url_station_collect = (
         "https://cli-dap.mrcc.purdue.edu/station/{stationid}/data?{query_string}"
     )
     headers = {"Accept": "application/json"}
 
-    reductions = "avg"
     payload = "start={start_date}&end={end_date}&elem={element}&interval={interval}&reduction={reduction}".format(
         start_date=start_date,
         end_date=end_date,
@@ -121,11 +130,6 @@ def retrieve_station_data(stationid, start_date, end_date):
         interval=interval,
         reduction=reductions,
     )
-    # payload = "start={start_date}&end={end_date}&elem={element}".format(
-    #     start_date=start_date,
-    #     end_date=end_date,
-    #     element=element,
-    # )
 
     resp = requests.get(
         url_station_collect.format(stationid=stationid, query_string=payload),
@@ -137,6 +141,19 @@ def retrieve_station_data(stationid, start_date, end_date):
         return None
 
     # What do nulls look like?
+    null_count = 0
+    for i in resp:
+        try:
+            resp[i]["AVA"] = float(resp[i]["AVA"])
+        except ValueError:
+            null_count += 1
+            resp[i]["AVA"] = 0
+
+    prop_missing = null_count / len(resp)
+    logging.info("Null count: " + str(prop_missing))
+    if prop_missing > 0.05:
+        logging.info("Missing too many from this station.")
+        return None
 
     return resp
 
@@ -146,11 +163,17 @@ def retrieve_station_data(stationid, start_date, end_date):
 #   end_date (photo_taken_date) as string %Y-%m-%d
 #   long, lat (collectionpoint.coords) in EPSG:4326
 def calc_gdu(start_date, end_date, lon, lat, base_number=40, upper_thresh=86):
-    start_date = datetime.datetime.strptime(start_date, "%Y-%m-%d").date()
-    end_date = datetime.datetime.strptime(end_date, "%Y-%m-%d").date()
-    # Verify planting date is before photo date
-    if end_date <= start_date:
-        return None
+    try:
+        start_date = datetime.datetime.strptime(start_date, "%Y-%m-%d").date()
+    except ValueError as err:
+        logging.error(f"Unexpected {err=}, {type(err)=}")
+        return {"error": str(err)}
+
+    try:
+        end_date = datetime.datetime.strptime(end_date, "%Y-%m-%d").date()
+    except ValueError as err:
+        logging.error(f"Unexpected {err=}, {type(err)=}")
+        return {"error": err}
 
     # gets all stations
     logging.info("About to get stations.")
@@ -159,12 +182,13 @@ def calc_gdu(start_date, end_date, lon, lat, base_number=40, upper_thresh=86):
     # get df of distance to all stations
     logging.info("Calculating distance from point to all stations")
     list_stations = get_dist_to_stations(list_stations, lon, lat)
-    logging.info("Closest station is:" + list_stations[0]["weabaseid"])
 
     attempt = 0
     while True:
+        logging.info(f"Attempt no. {attempt}")
         closest_station = list_stations[attempt]
         stationid = closest_station["weabaseid"]
+        logging.info(f"Pulling data from: {stationid}")
 
         station_data = retrieve_station_data(
             stationid,
@@ -173,13 +197,16 @@ def calc_gdu(start_date, end_date, lon, lat, base_number=40, upper_thresh=86):
         )
 
         if station_data is None:
+            logging.info("No data found.")
             attempt += 1
         else:
             break
 
+    # Result object to return
+    result = {"dist_to_station_km": closest_station["distance"], "stationid": stationid}
+
     cumulative_gdd = 0
     for i in station_data:
-        print("Before:", station_data[i]["AVA"])
         # Set NA in avg_temp to 0, what's this look like?
         # station_data[i]['AVA']
 
@@ -194,11 +221,11 @@ def calc_gdu(start_date, end_date, lon, lat, base_number=40, upper_thresh=86):
         if station_data[i]["AVA"] < 0:
             station_data[i]["AVA"] = 0
 
-        print("After:", station_data[i]["AVA"])
-
         cumulative_gdd += station_data[i]["AVA"]
 
-    return cumulative_gdd
+    result["cumulative_gdd"] = cumulative_gdd
+
+    return result
 
 
 """
