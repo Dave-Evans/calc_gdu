@@ -6,6 +6,7 @@ import math
 import datetime
 import json
 import logging
+import base64
 
 logger = logging.getLogger()
 logger.setLevel(logging.INFO)
@@ -15,8 +16,15 @@ def lambda_handler(event, context):
     print("Event")
     print(event)
 
-    print("Body:")
-    body = json.loads(event["body"])
+    body = event["body"]
+    print("Body before:")
+    print(body)
+    if event["isBase64Encoded"]:
+        body = decode_body(body)
+    else:
+        body = json.loads(body)
+
+    print("Body after:")
     print(body)
 
     start_date = body["start_date"]
@@ -26,8 +34,8 @@ def lambda_handler(event, context):
     if end_date <= start_date:
         return None
 
-    lon = body["lon"]
-    lat = body["lat"]
+    lon = float(body["lon"])
+    lat = float(body["lat"])
     base_number = 40
     upper_thresh = 86
     result = calc_gdu(
@@ -43,9 +51,30 @@ def lambda_handler(event, context):
 
     logger.info(f"CloudWatch logs group: {context.log_group_name}")
 
+    response = {
+        "statusCode": 200,
+        "statusDescription": "200 OK",
+        "isBase64Encoded": False,
+        "headers": {"Content-Type": "text/json; charset=utf-8"},
+        "body": result,
+    }
     # return the calculated area as a JSON string
-    data = result
-    return json.dumps(data)
+
+    return json.dumps(response)
+
+
+def decode_body(body):
+    """For decoding base64 encoded body to dict
+    body of the form:
+    'bG9uPS05Ni44MDQxNyZsYXQ9NDUuNTk0OCZzdGFydF9kYXRlPTIwMjAtMDgtMTgmZW5kX2RhdGU9MjAyMS0wNC0xOQ=='
+    """
+    body = base64.b64decode(body).decode()
+    split_body = body.split("&")
+    dct_body = {}
+    for i in split_body:
+        dct_body[i.split("=")[0]] = i.split("=")[1]
+
+    return dct_body
 
 
 # Look up stations
