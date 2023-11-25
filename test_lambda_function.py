@@ -38,7 +38,11 @@ if __name__ == "__main__":
         "body": {
             "dist_to_station_km": 16.728011016930733,
             "stationid": "K8D3",
-            "cumulative_gdd": 1561.3,
+            "cumulative_gdd": 1713.9054838176935,
+            "start_date": "2020-08-18",
+            "end_date": "2021-04-19",
+            "lon": -96.80417,
+            "lat": 45.5948,
         },
     }
 

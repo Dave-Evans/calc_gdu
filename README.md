@@ -1,7 +1,10 @@
-# Creating an AWS Lambda Function for Growing Degree Days and Precip
+# Code for calculating GDU using the Baskerville-Emin method
 
-Instructions and breadcrumbs for creating a lambda function on AWS to calculate
+These are instructions and breadcrumbs for creating a lambda function on AWS to calculate
 growing degree units and precipitation for my web apps.
+
+Currently not supporting precip calculation.
+
 
 ## Setup up
 
@@ -9,7 +12,7 @@ I'm creating a separate repository from main web app.
 `mkdir calc_gdu`
 
 Get latest(?) version of python for lambda compatibility.
-Create a virtual environment and install `requests` # and `geopandas`.
+Create a virtual environment and install `requests`
 
 ```bash
 sudo apt update
@@ -26,38 +29,53 @@ cd ../../../..
 zip dep_pkg.zip gdu_calc.py
 ```
 
+Terraform is pretty straightforward for setting up a lambda funcation.
 
-For testing lambda
+ - AWS IAM Policy document
+ - IAM role
+ - IAM role policy attachment
+ - Build lambda url
+ - Lambda function
+ - Setup logging to cloudwatch
+
+
+Makefile has been built to setup Lambda function and url and to test function.
+
 ```bash
-curl -v 'https://c76d5gzlin46g55ymdroqm24lu0efpnp.lambda-url.us-east-2.on.aws/' \
--H 'content-type: application/json' \
--d '{ "lon": -96.80417, "lat": 45.5948, "start_date": "2020-08-18", "end_date": "2021-04-19"}'
+make
+```
 
-# 2785
-curl -v 'https://c76d5gzlin46g55ymdroqm24lu0efpnp.lambda-url.us-east-2.on.aws/' \
--H 'content-type: application/json' \
--d '{ "lon": -89.2988646, "lat": 43.0899635, "start_date": "2020-06-21", "end_date": "2020-09-21"}'
+This will create the virt env
+    install the requests module
+    zip up site packages and script
+    use terraform to create the lambda
 
-# 2886.8
-curl -v 'https://c76d5gzlin46g55ymdroqm24lu0efpnp.lambda-url.us-east-2.on.aws/' \
--H 'content-type: application/json' \
--d '{ "lon": -89.2988646, "lat": 43.0899635, "start_date": "2021-06-21", "end_date": "2021-09-21"}'
+```bash
+make test
+```
+Will confirm the output is as it should be
 
-# 2922
-curl -v 'https://c76d5gzlin46g55ymdroqm24lu0efpnp.lambda-url.us-east-2.on.aws/' \
--H 'content-type: application/json' \
--d '{ "lon": -89.2988646, "lat": 43.0899635, "start_date": "2022-06-21", "end_date": "2022-09-21"}'
+```bash
+make clean
+```
+Will tear it all down.
 
-# 2883
-curl -v 'https://c76d5gzlin46g55ymdroqm24lu0efpnp.lambda-url.us-east-2.on.aws/' \
+
+For testing lambda with cURL
+```bash
+# Madison GDU for summer 2023: 2883
+curl -v 'https://dx4baa2ae5ejjjbsn6b7rz25ca0izdqw.lambda-url.us-east-2.on.aws/' \
 -H 'content-type: application/json' \
 -d '{ "lon": -89.2988646, "lat": 43.0899635, "start_date": "2023-06-21", "end_date": "2023-09-21"}'
 
-
+# For testing another location
+curl -v 'https://dx4baa2ae5ejjjbsn6b7rz25ca0izdqw.lambda-url.us-east-2.on.aws/' \
+-H 'content-type: application/json' \
+-d '{ "lon": -96.80417, "lat": 45.5948, "start_date": "2020-08-18", "end_date": "2021-04-19"}'
 ```
-
-
 
 ### Sources
 
 https://docs.aws.amazon.com/lambda/latest/dg/python-package.html
+https://nquayson.com/aws-lambda-function-url-using-terraform-quick-walkthrough
+https://callaway.dev/deploy-python-lambdas-with-terraform/
