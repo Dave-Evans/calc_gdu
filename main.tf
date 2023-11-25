@@ -40,53 +40,6 @@ locals {
   zip_file = "dep_pkg.zip"
 }
 
-# resource "null_resource" "install_dependencies" {
-#   provisioner "local-exec" {
-#     command = "pip install -r ${var.lambda_root}/requirements.txt -t ${var.lambda_root}/"
-#   }
-
-#   triggers = {
-#     dependencies_versions = filemd5("${var.lambda_root}/requirements.txt")
-#     source_versions       = filemd5("${var.lambda_root}/gdu_calc.py")
-#   }
-# }
-
-resource "random_uuid" "lambda_src_hash" {
-  keepers = {
-    for filename in setunion(
-      fileset(var.lambda_root, "gdu_calc.py"),
-      fileset(var.lambda_root, "requirements.txt")
-    ) :
-    filename => filemd5("${var.lambda_root}/${filename}")
-  }
-}
-
-// 3) Let terraform create a .zip file on your local computer which contains
-//    only our "index.js" file by ignoring any Terraform files (e.g. our .zip)
-# data "archive_file" "zip" {
-#   #   depends_on = [null_resource.install_dependencies]
-#   excludes = [
-#     ".env",
-#     ".terraform",
-#     ".terraform.lock.hcl",
-#     "docker-compose.yml",
-#     "main.tf",
-#     "terraform.tfstate",
-#     "terraform.tfstate.backup",
-#     local.zip_file,
-#   ]
-
-#   source {
-#     "${path.module}/gdu_calc.py"
-#   }
-
-#   #   source_dir = var.lambda_root
-#   type = "zip"
-
-#   // Create the .zip file in the same directory as the index.js file
-#   output_path = "${path.module}/${local.zip_file}"
-# }
-
 // 4) Create an AWS IAM resource who will act as an intermediary between
 //    our lambda and other AWS services such as Cloudwatch for "console.log"
 data "aws_iam_policy_document" "default" {
@@ -195,4 +148,11 @@ resource "aws_iam_policy" "lambda_logging" {
 resource "aws_iam_role_policy_attachment" "lambda_logs" {
   role       = aws_iam_role.default.name
   policy_arn = aws_iam_policy.lambda_logging.arn
+}
+
+
+######## Output ############
+
+output "lambda-url" {
+  value = aws_lambda_function_url.url1.function_url
 }

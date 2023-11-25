@@ -17,8 +17,6 @@ def test_lambda_function(lambda_url):
         "end_date": "2021-04-19",
     }
 
-    # lambda_url = "https://o263vwp6ysneawyao6na3qamy40hnpnt.lambda-url.us-east-2.on.aws/"
-
     resp = requests.get(
         lambda_url,
         headers=headers,
