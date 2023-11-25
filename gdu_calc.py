@@ -79,7 +79,7 @@ def decode_body(body):
 
 # Look up stations
 def get_stations():
-    states = ["MN", "SD", "ND", "IA", "WI"]
+    states = ["MN", "SD", "ND", "IA", "WI", "IL", "MI"]
     url_station_collect = "https://cli-dap.mrcc.purdue.edu/state/{state}/"
     headers = {"Accept": "application/json"}
 
