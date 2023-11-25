@@ -138,14 +138,18 @@ def get_dist_to_stations(list_stations, lon, lat):
 
 
 # collect data from that station
-def retrieve_station_data(stationid, start_date, end_date, element="AVA"):
+def retrieve_station_data(
+    stationid, start_date, end_date, element="AVA", reductions="avg"
+):
     interval = "dly"
     # Precip
     # element = "PRE"
     # Average Air Temp
-    element = "AVA"
+    # element = "AVA"
     # element = "&elem=".join(["AVA", "PRE"])
-    reductions = "avg"
+    # reductions = "avg"
+    if isinstance(element, list):
+        element = "&elem=".join(element)
 
     url_station_collect = (
         "https://cli-dap.mrcc.purdue.edu/station/{stationid}/data?{query_string}"
@@ -187,6 +191,97 @@ def retrieve_station_data(stationid, start_date, end_date, element="AVA"):
     return resp
 
 
+def get_min_max_ava(list_stations, start_date, end_date):
+    """Get the min and max air temp for each day.
+    Testing the station data for missing data. If missing prop
+    greater than 0.05 then discard and move to next nearest station.
+        list_stations: list of"""
+    attempt = 0
+    while True:
+        logging.info(f"Attempt no. {attempt}")
+        closest_station = list_stations[attempt]
+        stationid = closest_station["weabaseid"]
+        logging.info(f"Pulling data from: {stationid}")
+
+        max_station_data = retrieve_station_data(
+            stationid,
+            start_date.strftime("%Y%m%d"),
+            end_date.strftime("%Y%m%d"),
+            reductions="max",
+        )
+
+        min_station_data = retrieve_station_data(
+            stationid,
+            start_date.strftime("%Y%m%d"),
+            end_date.strftime("%Y%m%d"),
+            reductions="min",
+        )
+        if (min_station_data is None) | (max_station_data is None):
+            logging.info("No data found.")
+            attempt += 1
+        else:
+            break
+
+    # Combine min and max returns to
+    if len(max_station_data) != len(min_station_data):
+        print("####################")
+        print("Different length for min and max temp data")
+        print("####################")
+        raise Exception("Different length for min and max temp data")
+
+    station_data = {}
+    for i in max_station_data:
+        station_data[i] = {
+            "min_temp": min_station_data[i]["AVA"],
+            "max_temp": max_station_data[i]["AVA"],
+        }
+
+    return station_data, stationid, closest_station["distance"]
+
+
+def calcHeat(fk1, tsum, diff):
+    twopi = 6.283185308
+    pihlf = 1.570796327
+    d2 = fk1 - tsum
+    theta = math.atan(d2 / math.sqrt(diff * diff - d2 * d2))
+    if (d2 < 0) & (theta > 0):
+        theta = theta - math.pi
+
+    return (diff * math.cos(theta) - d2 * (pihlf - theta)) / twopi
+
+
+def gdu_be(station_data, start_date, end_date, base_number=40, upper_thresh=86):
+    """For calculating the GDU with the BE method"""
+
+    heat = 0
+    fk1 = 2 * base_number
+
+    cumulative_gdd = 0
+    for i in station_data:
+        tmin = station_data[i]["min_temp"]
+        tmax = station_data[i]["max_temp"]
+
+        diff = tmax - tmin
+        tsum = tmax + tmin
+
+        # return 0 if invalid inputs or max below base_number
+        if (tmin > tmax) | (tmax <= tmin) | (tmax <= base_number):
+            gdu = 0
+        elif tmin >= base_number:
+            gdu = (tsum - fk1) / 2
+        elif tmin < base_number:
+            gdu = calcHeat(fk1, tsum, diff)
+        elif tmax > upper_thresh:
+            fk1 = 2 * upper_thresh
+            zheat = heat
+            heat = calcHeat(fk1, tsum, diff)
+            gdu = zheat - 2 * heat
+
+        cumulative_gdd += gdu
+
+    return cumulative_gdd
+
+
 # Calculate growing degree days
 #   start_date (cover_crop_planting_date) as string %Y-%m-%d
 #   end_date (photo_taken_date) as string %Y-%m-%d
@@ -212,47 +307,24 @@ def calc_gdu(start_date, end_date, lon, lat, base_number=40, upper_thresh=86):
     logging.info("Calculating distance from point to all stations")
     list_stations = get_dist_to_stations(list_stations, lon, lat)
 
-    attempt = 0
-    while True:
-        logging.info(f"Attempt no. {attempt}")
-        closest_station = list_stations[attempt]
-        stationid = closest_station["weabaseid"]
-        logging.info(f"Pulling data from: {stationid}")
+    station_data, stationid, distance = get_min_max_ava(
+        list_stations, start_date, end_date
+    )
 
-        station_data = retrieve_station_data(
-            stationid,
-            start_date.strftime("%Y%m%d"),
-            end_date.strftime("%Y%m%d"),
-        )
-
-        if station_data is None:
-            logging.info("No data found.")
-            attempt += 1
-        else:
-            break
+    cumulative_gdd = gdu_be(
+        station_data, start_date, end_date, base_number=40, upper_thresh=86
+    )
 
     # Result object to return
-    result = {"dist_to_station_km": closest_station["distance"], "stationid": stationid}
-
-    cumulative_gdd = 0
-    for i in station_data:
-        # Set NA in avg_temp to 0, what's this look like?
-        # station_data[i]['AVA']
-
-        # Set upper threshold to 86
-        if station_data[i]["AVA"] > 86:
-            station_data[i]["AVA"] = 86
-
-        # subtract base number from avg temp
-        station_data[i]["AVA"] = station_data[i]["AVA"] - base_number
-
-        # Set less than 0 to 0
-        if station_data[i]["AVA"] < 0:
-            station_data[i]["AVA"] = 0
-
-        cumulative_gdd += station_data[i]["AVA"]
-
-    result["cumulative_gdd"] = cumulative_gdd
+    result = {
+        "dist_to_station_km": distance,
+        "stationid": stationid,
+        "cumulative_gdd": cumulative_gdd,
+        "start_date": start_date.strftime("%Y-%m-%d"),
+        "end_date": end_date.strftime("%Y-%m-%d"),
+        "lon": lon,
+        "lat": lat,
+    }
 
     return result
 
