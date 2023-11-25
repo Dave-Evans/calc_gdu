@@ -3,8 +3,8 @@
 These are instructions and breadcrumbs for creating a lambda function on AWS to calculate
 growing degree units and precipitation for my web apps.
 
-It pulls daily min and max air temperature from the (Climate Data Access Portal)[https://mrcc.purdue.edu/data_serv/cli-dap]
-and calculates growing degree unitys using the Baskerville-Emin method.
+It pulls daily min and max air temperature from the [Climate Data Access Portal](https://mrcc.purdue.edu/data_serv/cli-dap)
+and calculates growing degree units using the Baskerville-Emin method.
 
 It takes a start date, end date, and a longitude and latitude value.
 The lon and lat are used to find the nearest weather station to provide the data.
