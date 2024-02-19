@@ -1,46 +1,43 @@
-# Code for calculating GDU 
+# Code for calculating GDU and Cumulative Precipitation
 
 These are instructions and breadcrumbs for creating a lambda function on AWS to calculate
-growing degree units and precipitation for my web apps.
+growing degree units and precipitation for various uses.
 
 It pulls daily min and max air temperature from the [Climate Data Access Portal](https://mrcc.purdue.edu/data_serv/cli-dap)
 and calculates growing degree units using the Baskerville-Emin method.
+It calculates cumulative precipitation over a time period by summing the hourly precipitation.
+Precipitation units are inches.
+
+Use "target": "GDU" for growing degree units and "target": "PRE" for cumulative precipitation.
 
 It takes a start date, end date, and a longitude and latitude value.
 The lon and lat are used to find the nearest weather station to provide the data.
 If a weather station has greater than 5% missing data for that time period then the next closest station is used.
 The weather station id and distance in kilometers are returned in the request.
 
-Currently not supporting precip calculation.
-
-
 For using the service with cURL
 ```bash
 # Madison GDU for summer 2023: 2883
-curl -v 'https://bjge4godkifmin7sourx4p7ole0lyjhz.lambda-url.us-east-2.on.aws/' \
+curl -v 'https://e4z65myywd4yvd54d6cvqae37y0ratpa.lambda-url.us-east-2.on.aws/' \
 -H 'content-type: application/json' \
--d '{ "lon": -89.2988646, "lat": 43.0899635, "start_date": "2023-06-21", "end_date": "2023-09-21"}'
+-d '{ "target": "GDU", "lon": -89.2988646, "lat": 43.0899635, "start_date": "2023-06-21", "end_date": "2023-09-21"}'
 
-# For testing another location
-curl -v 'https://bjge4godkifmin7sourx4p7ole0lyjhz.lambda-url.us-east-2.on.aws/' \
+# For grabbing precip for another location 
+curl -v 'https://e4z65myywd4yvd54d6cvqae37y0ratpa.lambda-url.us-east-2.on.aws/' \
 -H 'content-type: application/json' \
--d '{ "lon": -96.80417, "lat": 45.5948, "start_date": "2020-08-18", "end_date": "2021-04-19"}'
+-d '{ "target": "PRE", "lon": -96.80417, "lat": 45.5948, "start_date": "2020-08-18", "end_date": "2021-04-19"}'
 ```
 
 For accessing with Python:
 ```python
 import requests
 
-lambda_url = 'https://bjge4godkifmin7sourx4p7ole0lyjhz.lambda-url.us-east-2.on.aws/'
-
-start_date = "2020-08-18"
-end_date = "2021-04-19"
-lon = -96.80417
-lat = 45.5948
+lambda_url = 'https://e4z65myywd4yvd54d6cvqae37y0ratpa.lambda-url.us-east-2.on.aws/'
 
 headers = {"Accept": "application/json"}
 
 data = {
+    "target": "GDU",
     "lon": -96.80417,
     "lat": 45.5948,
     "start_date": "2020-08-18",
@@ -53,6 +50,7 @@ resp = requests.get(
     data=data,
 )
 resp = resp.json()
+print(resp)
 ```
 
 For R
@@ -60,7 +58,7 @@ For R
 library(httr)
 library(jsonlite)
 
-lambda_url = 'https://bjge4godkifmin7sourx4p7ole0lyjhz.lambda-url.us-east-2.on.aws/'
+lambda_url = 'https://e4z65myywd4yvd54d6cvqae37y0ratpa.lambda-url.us-east-2.on.aws/'
 rslt = POST(lambda_url, body = list(
   lon=-89.2988646,
   lat=43.0899635,

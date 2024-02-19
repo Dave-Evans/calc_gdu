@@ -25,7 +25,7 @@ provider "aws" {
 // 2) Setup our lambda parameters and .zip file that will be uploaded to AWS
 locals {
   // The name of our lambda function when is created in AWS
-  function_name = "calcGDU"
+  function_name = "calcGDUandPrecip"
   // When our lambda is run / invoked later on, run the "handler"
   // function exported from the "index" file
   handler = "gdu_calc.lambda_handler"

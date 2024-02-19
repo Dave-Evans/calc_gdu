@@ -38,13 +38,18 @@ def lambda_handler(event, context):
     lat = float(body["lat"])
     base_number = 40
     upper_thresh = 86
-    result = calc_gdu(
+    
+    print(body["target"])    
+    if body["target"] == "PRE":
+        print("Precip")
+    elif body["target"] == "GDU":
+        print("GDU")
+    result = get_weather_data(
+        body["target"],
         start_date,
         end_date,
         lon,
         lat,
-        base_number=base_number,
-        upper_thresh=upper_thresh,
     )
 
     logger.info(result)
@@ -139,9 +144,16 @@ def get_dist_to_stations(list_stations, lon, lat):
 
 # collect data from that station
 def retrieve_station_data(
-    stationid, start_date, end_date, element="AVA", reductions="avg"
+    stationid, start_date, end_date, element="AVA", reductions="avg", interval='dly', null_threshold=0.05
 ):
-    interval = "dly"
+    logging.info(f"stationid: {stationid}")
+    logging.info(f"start_date: {start_date}")
+    logging.info(f"end_date: {end_date}")
+    logging.info(f"element: {element}")
+    logging.info(f"reductions: {reductions}")
+    logging.info(f"interval: {interval}")
+    logging.info(f"null_threshold: {null_threshold}")
+    # interval = "dly"
     # Precip
     # element = "PRE"
     # Average Air Temp
@@ -177,19 +189,66 @@ def retrieve_station_data(
     null_count = 0
     for i in resp:
         try:
-            resp[i]["AVA"] = float(resp[i]["AVA"])
+            resp[i][element] = float(resp[i][element])
         except ValueError:
             null_count += 1
-            resp[i]["AVA"] = 0
+            resp[i][element] = 0
 
     prop_missing = null_count / len(resp)
     logging.info("Null count: " + str(prop_missing))
-    if prop_missing > 0.05:
+    if prop_missing > null_threshold:
         logging.info("Missing too many from this station.")
         return None
 
     return resp
 
+
+def calc_cum_precip(list_stations, start_date, end_date):
+    """Get cumulative precipitation
+    Based on hourly data"""
+    
+    
+    attempt = 0
+    while True:
+        logging.info(f"Attempt no. {attempt}")
+        closest_station = list_stations[attempt]
+        stationid = closest_station["weabaseid"]
+        logging.info(f"Pulling data from: {stationid}")
+
+        max_station_data = retrieve_station_data(
+            stationid,
+            start_date.strftime("%Y%m%d"),
+            end_date.strftime("%Y%m%d"),
+            element="PRE",
+            # reduction not relevant because
+            #   this is hourly data
+            reductions="max",
+            interval='hly'
+        )
+        if (max_station_data is None):
+            logging.info("No data found.")
+            attempt += 1
+        else:
+            break
+    
+    cum_precip = 0
+    for i in max_station_data:
+        cum_precip += max_station_data[i]["PRE"]
+        
+    # Result object to return
+    result = {
+        "dist_to_station_km": closest_station["distance"],
+        "stationid": stationid,
+        "cumulative_precip": cum_precip,
+        "start_date": start_date.strftime("%Y-%m-%d"),
+        "end_date": end_date.strftime("%Y-%m-%d")
+    }
+
+    return result
+
+        
+        
+            
 
 def get_min_max_ava(list_stations, start_date, end_date):
     """Get the min and max air temp for each day.
@@ -282,11 +341,11 @@ def gdu_be(station_data, start_date, end_date, base_number=40, upper_thresh=86):
     return cumulative_gdd
 
 
-# Calculate growing degree days
-#   start_date (cover_crop_planting_date) as string %Y-%m-%d
-#   end_date (photo_taken_date) as string %Y-%m-%d
-#   long, lat (collectionpoint.coords) in EPSG:4326
-def calc_gdu(start_date, end_date, lon, lat, base_number=40, upper_thresh=86):
+
+def get_weather_data(target, start_date, end_date, lon, lat):
+    '''if target = PRE then cumulative precip
+        else target = GDU then GDU
+    '''
     try:
         start_date = datetime.datetime.strptime(start_date, "%Y-%m-%d").date()
     except ValueError as err:
@@ -306,6 +365,24 @@ def calc_gdu(start_date, end_date, lon, lat, base_number=40, upper_thresh=86):
     # get df of distance to all stations
     logging.info("Calculating distance from point to all stations")
     list_stations = get_dist_to_stations(list_stations, lon, lat)
+    
+    if target == "PRE":
+        result = calc_cum_precip(list_stations, start_date, end_date)
+    elif target == "GDU":
+        result = calc_gdu(list_stations, start_date, end_date, base_number=40, upper_thresh=86)
+    
+    result['lon'] = lon
+    result['lat'] = lat
+    
+    return result
+    
+
+def calc_gdu(list_stations, start_date, end_date, base_number=40, upper_thresh=86):
+    ''' Calculate growing degree days
+    start_date (cover_crop_planting_date) as string %Y-%m-%d
+    end_date (photo_taken_date) as string %Y-%m-%d
+    long, lat (collectionpoint.coords) in EPSG:4326
+    '''
 
     station_data, stationid, distance = get_min_max_ava(
         list_stations, start_date, end_date
@@ -322,8 +399,6 @@ def calc_gdu(start_date, end_date, lon, lat, base_number=40, upper_thresh=86):
         "cumulative_gdd": cumulative_gdd,
         "start_date": start_date.strftime("%Y-%m-%d"),
         "end_date": end_date.strftime("%Y-%m-%d"),
-        "lon": lon,
-        "lat": lat,
     }
 
     return result
