@@ -17,12 +17,12 @@ Currently not supporting precip calculation.
 For using the service with cURL
 ```bash
 # Madison GDU for summer 2023: 2883
-curl -v 'https://gncpnwkl6ewrm66haprvfb7bpa0aovcv.lambda-url.us-east-2.on.aws/' \
+curl -v 'https://bjge4godkifmin7sourx4p7ole0lyjhz.lambda-url.us-east-2.on.aws/' \
 -H 'content-type: application/json' \
 -d '{ "lon": -89.2988646, "lat": 43.0899635, "start_date": "2023-06-21", "end_date": "2023-09-21"}'
 
 # For testing another location
-curl -v 'https://gncpnwkl6ewrm66haprvfb7bpa0aovcv.lambda-url.us-east-2.on.aws/' \
+curl -v 'https://bjge4godkifmin7sourx4p7ole0lyjhz.lambda-url.us-east-2.on.aws/' \
 -H 'content-type: application/json' \
 -d '{ "lon": -96.80417, "lat": 45.5948, "start_date": "2020-08-18", "end_date": "2021-04-19"}'
 ```
@@ -30,6 +30,9 @@ curl -v 'https://gncpnwkl6ewrm66haprvfb7bpa0aovcv.lambda-url.us-east-2.on.aws/' 
 For accessing with Python:
 ```python
 import requests
+
+lambda_url = 'https://bjge4godkifmin7sourx4p7ole0lyjhz.lambda-url.us-east-2.on.aws/'
+
 start_date = "2020-08-18"
 end_date = "2021-04-19"
 lon = -96.80417
@@ -57,7 +60,7 @@ For R
 library(httr)
 library(jsonlite)
 
-lambda_url = 'https://gncpnwkl6ewrm66haprvfb7bpa0aovcv.lambda-url.us-east-2.on.aws/'
+lambda_url = 'https://bjge4godkifmin7sourx4p7ole0lyjhz.lambda-url.us-east-2.on.aws/'
 rslt = POST(lambda_url, body = list(
   lon=-89.2988646,
   lat=43.0899635,

@@ -25,7 +25,7 @@ provider "aws" {
 // 2) Setup our lambda parameters and .zip file that will be uploaded to AWS
 locals {
   // The name of our lambda function when is created in AWS
-  function_name = "soon-to-be-calc-gdu"
+  function_name = "calcGDU"
   // When our lambda is run / invoked later on, run the "handler"
   // function exported from the "index" file
   handler = "gdu_calc.lambda_handler"
@@ -34,7 +34,7 @@ locals {
   // By default lambda only runs for a max of 3 seconds but our
   // "hello world" is printed after 5 seconds. So, we need to
   // increase how long we let our lambda run (e.g. 6 seconds)
-  timeout = 15
+  timeout = 45
 
   // The .zip file we will create and upload to AWS later on
   zip_file = "dep_pkg.zip"
