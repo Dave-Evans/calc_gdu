@@ -265,6 +265,7 @@ def get_min_max_ava(list_stations, start_date, end_date):
         closest_station = list_stations[attempt]
         stationid = closest_station["weabaseid"]
         logging.info(f"Pulling data from: {stationid}")
+        logging.info(f"Distance away: {stationid} km")
 
         max_station_data = retrieve_station_data(
             stationid,
