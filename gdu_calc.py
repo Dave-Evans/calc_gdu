@@ -38,8 +38,8 @@ def lambda_handler(event, context):
     lat = float(body["lat"])
     base_number = 40
     upper_thresh = 86
-    
-    print(body["target"])    
+
+    print(body["target"])
     if body["target"] == "PRE":
         print("Precip")
     elif body["target"] == "GDU":
@@ -144,7 +144,13 @@ def get_dist_to_stations(list_stations, lon, lat):
 
 # collect data from that station
 def retrieve_station_data(
-    stationid, start_date, end_date, element="AVA", reductions="avg", interval='dly', null_threshold=0.05
+    stationid,
+    start_date,
+    end_date,
+    element="AVA",
+    reductions="avg",
+    interval="dly",
+    null_threshold=0.05,
 ):
     logging.info(f"stationid: {stationid}")
     logging.info(f"start_date: {start_date}")
@@ -206,14 +212,15 @@ def retrieve_station_data(
 def calc_cum_precip(list_stations, start_date, end_date):
     """Get cumulative precipitation
     Based on hourly data"""
-    
-    
+
     attempt = 0
     while True:
         logging.info(f"Attempt no. {attempt}")
         closest_station = list_stations[attempt]
         stationid = closest_station["weabaseid"]
+        stationid = closest_station["distance"]
         logging.info(f"Pulling data from: {stationid}")
+        logging.info(f"Distance away: {stationid} km")
 
         max_station_data = retrieve_station_data(
             stationid,
@@ -223,32 +230,29 @@ def calc_cum_precip(list_stations, start_date, end_date):
             # reduction not relevant because
             #   this is hourly data
             reductions="max",
-            interval='hly'
+            interval="hly",
         )
-        if (max_station_data is None):
+        if max_station_data is None:
             logging.info("No data found.")
             attempt += 1
         else:
             break
-    
+
     cum_precip = 0
     for i in max_station_data:
         cum_precip += max_station_data[i]["PRE"]
-        
+
     # Result object to return
     result = {
         "dist_to_station_km": closest_station["distance"],
         "stationid": stationid,
         "cumulative_precip": cum_precip,
         "start_date": start_date.strftime("%Y-%m-%d"),
-        "end_date": end_date.strftime("%Y-%m-%d")
+        "end_date": end_date.strftime("%Y-%m-%d"),
     }
 
     return result
 
-        
-        
-            
 
 def get_min_max_ava(list_stations, start_date, end_date):
     """Get the min and max air temp for each day.
@@ -341,11 +345,10 @@ def gdu_be(station_data, start_date, end_date, base_number=40, upper_thresh=86):
     return cumulative_gdd
 
 
-
 def get_weather_data(target, start_date, end_date, lon, lat):
-    '''if target = PRE then cumulative precip
-        else target = GDU then GDU
-    '''
+    """if target = PRE then cumulative precip
+    else target = GDU then GDU
+    """
     try:
         start_date = datetime.datetime.strptime(start_date, "%Y-%m-%d").date()
     except ValueError as err:
@@ -365,24 +368,26 @@ def get_weather_data(target, start_date, end_date, lon, lat):
     # get df of distance to all stations
     logging.info("Calculating distance from point to all stations")
     list_stations = get_dist_to_stations(list_stations, lon, lat)
-    
+
     if target == "PRE":
         result = calc_cum_precip(list_stations, start_date, end_date)
     elif target == "GDU":
-        result = calc_gdu(list_stations, start_date, end_date, base_number=40, upper_thresh=86)
-    
-    result['lon'] = lon
-    result['lat'] = lat
-    
+        result = calc_gdu(
+            list_stations, start_date, end_date, base_number=40, upper_thresh=86
+        )
+
+    result["lon"] = lon
+    result["lat"] = lat
+
     return result
-    
+
 
 def calc_gdu(list_stations, start_date, end_date, base_number=40, upper_thresh=86):
-    ''' Calculate growing degree days
+    """Calculate growing degree days
     start_date (cover_crop_planting_date) as string %Y-%m-%d
     end_date (photo_taken_date) as string %Y-%m-%d
     long, lat (collectionpoint.coords) in EPSG:4326
-    '''
+    """
 
     station_data, stationid, distance = get_min_max_ava(
         list_stations, start_date, end_date

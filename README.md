@@ -60,10 +60,11 @@ library(jsonlite)
 
 lambda_url = 'https://e4z65myywd4yvd54d6cvqae37y0ratpa.lambda-url.us-east-2.on.aws/'
 rslt = POST(lambda_url, body = list(
-  lon=-89.2988646,
-  lat=43.0899635,
-  start_date='2023-06-21',
-  end_date='2023-09-21'
+  target     = 'GDU',
+  lon        = -89.2988646,
+  lat        = 43.0899635,
+  start_date = '2023-06-21',
+  end_date   = '2023-09-21'
 ),
 encode="json"
 )
@@ -76,6 +77,8 @@ content(rslt)$body
 
 # The cumulative growing degree days
 content(rslt)$body$cumulative_gdd
+# or for precip
+# content(rslt)$body$cumulative_precip
 ```
 
 ## Setup up notes
