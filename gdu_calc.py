@@ -218,9 +218,9 @@ def calc_cum_precip(list_stations, start_date, end_date):
         logging.info(f"Attempt no. {attempt}")
         closest_station = list_stations[attempt]
         stationid = closest_station["weabaseid"]
-        stationid = closest_station["distance"]
+        distance = closest_station["distance"]
         logging.info(f"Pulling data from: {stationid}")
-        logging.info(f"Distance away: {stationid} km")
+        logging.info(f"Distance away: {distance} km")
 
         max_station_data = retrieve_station_data(
             stationid,
@@ -264,8 +264,9 @@ def get_min_max_ava(list_stations, start_date, end_date):
         logging.info(f"Attempt no. {attempt}")
         closest_station = list_stations[attempt]
         stationid = closest_station["weabaseid"]
+        distance = closest_station["distance"]
         logging.info(f"Pulling data from: {stationid}")
-        logging.info(f"Distance away: {stationid} km")
+        logging.info(f"Distance away: {distance} km")
 
         max_station_data = retrieve_station_data(
             stationid,

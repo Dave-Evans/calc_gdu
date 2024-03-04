@@ -11,6 +11,7 @@ def test_lambda_function(lambda_url):
     headers = {"Accept": "application/json"}
 
     data = {
+        "target": "GDU",
         "lon": -96.80417,
         "lat": 45.5948,
         "start_date": "2020-08-18",

@@ -34,7 +34,7 @@ locals {
   // By default lambda only runs for a max of 3 seconds but our
   // "hello world" is printed after 5 seconds. So, we need to
   // increase how long we let our lambda run (e.g. 6 seconds)
-  timeout = 45
+  timeout = 180
 
   // The .zip file we will create and upload to AWS later on
   zip_file = "dep_pkg.zip"
